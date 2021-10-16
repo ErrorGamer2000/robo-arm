@@ -1,12 +1,9 @@
-import { Gpio } from "onoff";
 import { range, wait } from "./helpers.js";
 import Switch from "./switch.js";
 
 export default class Stepper {
   constructor(pins, switchPin) {
-    this.gpioSet = pins.map(function (pin) {
-      return new Gpio(pin, "out");
-    });
+    this.gpioSet = pins;
     this.switch = new Switch(switchPin);
   }
 
@@ -21,16 +18,18 @@ export default class Stepper {
     [0, 0, 1, 0],
     [0, 0, 1, 1],
     [0, 0, 0, 1]
-  ];
+  ].reverse();
   currentStep = 0;
   currentPartStep = 0;
   seqIdx = 0;
-  delay = 0.0001;
+  delay = 2;
 
-  setOutputs(outputs) {
-    this.gpioSet.forEach(function (gpio, index) {
-      gpio.writeSync(outputs[index]);
-    });
+  async setOutputs(outputs) {
+    await Promise.all(
+      this.gpioSet.map(function (gpio, index) {
+        return gpio.rwite(outputs[index]);
+      })
+    );
   }
 
   changePartStepBy(num) {
@@ -51,7 +50,7 @@ export default class Stepper {
 
   async forwardFull(steps) {
     if (steps < 0) {
-      return this.backwardFull(-steps);
+      return await this.backwardFull(-steps);
     }
     for (const step in range(steps)) {
       await this.forwardPart(this.sequence.length);
@@ -60,21 +59,21 @@ export default class Stepper {
 
   async forwardPart(steps) {
     if (steps < 0) {
-      return this.backwardPart(-steps);
+      return await this.backwardPart(-steps);
     }
 
     for (const step in range(steps)) {
       if (this.currentPartStep > this.partSteps / 2 && this.switch.check())
         return;
       this.changePartStepBy(1);
-      this.setOutputs(this.sequence[this.seqIdx]);
+      await this.setOutputs(this.sequence[this.seqIdx]);
       await wait(this.delay);
     }
   }
 
   async backwardFull(steps) {
     if (steps < 0) {
-      return this.forwardFull(-steps);
+      return await this.forwardFull(-steps);
     }
     for (const step in range(steps)) {
       await this.backwardPart(this.sequence.length);
@@ -92,7 +91,7 @@ export default class Stepper {
       if (this.currentPartStep < this.partSteps / 2 && this.switch.check())
         return;
       this.changePartStepBy(-1);
-      this.setOutputs(this.sequence[this.seqIdx]);
+      await this.setOutputs(this.sequence[this.seqIdx]);
       await wait(this.delay);
     }
   }
@@ -104,15 +103,16 @@ export default class Stepper {
     await this.init();
     this.switch.pin.unexport();
 
-    this.gpioSet.forEach(function (gpio) {
-      gpio.writeSync(0);
-      gpio.unexport();
-    });
+    await Promise.all(
+      this.gpioSet.map(function (gpio) {
+        return gpio.write(0);
+      })
+    );
     this.gpioSet = [];
   }
 
   async init() {
-    this.switch.check();
+    await this.switch.check();
     while (!this.switch.pressed) {
       await this.backwardPart(1);
     }

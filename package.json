@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "i2c-bus": "^5.2.2",
     "onoff": "^6.0.3"
   }
 }

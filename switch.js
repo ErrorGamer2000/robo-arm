@@ -1,15 +1,12 @@
 import EventEmitter from "events";
-import { Gpio } from "onoff";
 
-export default class Switch /* extends EventEmitter*/ {
+export default class Switch {
   pressed = false;
   constructor(pinIn) {
-    //super();
-    this.pin = new Gpio(pinIn, "in");
-    this.pressed = !!this.pin.readSync();
+    this.pin = pinIn;
   }
 
-  check() {
-    return (this.pressed = !!this.pin.readSync());
+  async check() {
+    return (this.pressed = !!(await this.pin.read()));
   }
 }
