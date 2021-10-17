@@ -36,7 +36,7 @@ export default class Bus extends Constants {
   ];
   /* Whether or not the pins have been registerd as inputs or outputs yet */
   hasSetIO = false;
-  constructor(busnum, addr = Bus.DEVICE, { force = false }) {
+  constructor(busnum, addr = Bus.DEVICE, { force = false } = {}) {
     /* Required because the `Bus` class is a child of `Constants` */
     /* Doesn't do anything */
     super();
@@ -102,7 +102,7 @@ export default class Bus extends Constants {
 
   /* -------- Convert binary input/output data to a number for commands ------- */
   getModes(row) {
-    return Number(`0b${this.__pinIO[row].map(copy).reverse().join("")}`);
+    return Number(`0b${this.__pinIO[row].map(copy).join("")}`);
   }
 
   /* ------------------- Get a GPIO pin for reading/writing ------------------- */
@@ -158,6 +158,8 @@ export default class Bus extends Constants {
         return self.__pinValues[this.__row][this.__pin];
       }
     }
+
+    return new Gpio(pin, row);
   }
 
   /* ---------------- Update the on/off of outputs on a pin row --------------- */
@@ -179,8 +181,7 @@ export default class Bus extends Constants {
     /* Get data byte(number from 0 to 255) */
     let byte = await this.__device.readByte(
       this.__data.addr,
-      row /* true if 1 */ ? Bus.GPIOB : Bus.GPIOA,
-      this.getValues(row)
+      row /* true if 1 */ ? Bus.GPIOB : Bus.GPIOA
     );
 
     /* Convert byte to binary for reading */
@@ -190,13 +191,15 @@ export default class Bus extends Constants {
     let rowValues = this.__pinValues[row];
 
     /* Update pin values */
-    let values = rowIO.map(function (inOut, pin) {
-      if (inOut === 1) {
-        return binary[pin];
-      }
+    let values = Buffer.from(
+      rowIO.map(function (inOut, pin) {
+        if (inOut === 1) {
+          return binary[pin];
+        }
 
-      return rowValues[pin];
-    });
+        return rowValues[pin];
+      })
+    );
 
     this.__pinValues[row] = values;
   }
@@ -213,6 +216,6 @@ export default class Bus extends Constants {
       idx++;
     }
 
-    return binaryArray.reverse();
+    return binaryArray;
   }
 }

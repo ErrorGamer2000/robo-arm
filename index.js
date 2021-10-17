@@ -2,7 +2,8 @@ import Stepper from "./stepper.js";
 import { wait } from "./helpers.js";
 import Bus from "./microchip/bus.js";
 
-const bus1 = new Bus(1, Bus.DEVICE);
+const bus1 = new Bus(1, 0x20);
+await bus1.open();
 bus1.setPinIO("a", 4, Bus.IN);
 await bus1.configureIO();
 const bus1pins = {

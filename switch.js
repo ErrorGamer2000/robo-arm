@@ -1,5 +1,3 @@
-import EventEmitter from "events";
-
 export default class Switch {
   pressed = false;
   constructor(pinIn) {
