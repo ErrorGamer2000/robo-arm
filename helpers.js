@@ -18,7 +18,7 @@ export function range(start, end) {
   }
 }
 
-export function wait(ms) {
+export function sleep(ms) {
   if (ms <= 0) {
     return Promise.resolve();
   }

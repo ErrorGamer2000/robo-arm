@@ -77,12 +77,3 @@ export function range(start, end) {
     });
   }
 }
-
-export function wait(ms) {
-  if (ms <= 0) {
-    return Promise.resolve();
-  }
-  return new Promise(function (resolve, reject) {
-    setTimeout(resolve, ms);
-  });
-}

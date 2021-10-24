@@ -1,4 +1,4 @@
-import { range, wait } from "./helpers.js";
+import { range, sleep } from "./helpers.js";
 import Switch from "./switch.js";
 
 export default class Stepper {
@@ -63,7 +63,7 @@ export default class Stepper {
     for (const step in range(steps)) {
       this.changePartStepBy(1);
       await this.setOutputs(this.sequence[this.seqIdx]);
-      await wait(this.delay);
+      await sleep(this.delay);
     }
   }
 
@@ -84,7 +84,7 @@ export default class Stepper {
     for (const step in range(steps)) {
       this.changePartStepBy(-1);
       await this.setOutputs(this.sequence[this.seqIdx]);
-      await wait(this.delay);
+      await sleep(this.delay);
     }
   }
 
