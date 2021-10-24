@@ -1,3 +1,7 @@
+/* -------------------------------------------------------------------------- */
+/*            A simple class to manage switches and switch reading            */
+/* -------------------------------------------------------------------------- */
+
 export default class Switch {
   pressed = false;
   constructor(pinIn) {

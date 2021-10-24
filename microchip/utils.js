@@ -22,6 +22,7 @@ export function copy(val) {
   )
     return val.constructor.from(val);
   if (stringTag === "RegExp") return new RegExp(val.source, val.flags);
+  if (/Event$/.test(stringTag)) return new val.constructor(val);
   if (/Map$/.test(stringTag)) return new val.constructor(val);
   if (/Set$/.test(stringTag)) return new val.constructor(val);
   if (/Buffer$/.test(stringTag)) return val.constructor.from(val);

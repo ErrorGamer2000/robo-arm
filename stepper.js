@@ -1,35 +1,56 @@
-import { range, sleep } from "./helpers.js";
+import { range, sleep } from "./utils.js";
 import Switch from "./switch.js";
 
+/* -------------------------------------------------------------------------- */
+/*                       Stepper Motor Management Class                       */
+/* -------------------------------------------------------------------------- */
 export default class Stepper {
+  /* --- Create a new stepper motor controller using four outpus and 1 input -- */
   constructor(pins, switchPin) {
     this.gpioSet = pins;
     this.switch = new Switch(switchPin);
   }
 
+  /**
+   * Total number of steps in a revolution (Approximate, gear ratio is not exact)
+   * Close enough because the motor should never go through more than one revolution.
+   */
   steps = 512;
+
+  /* The number of partial steps in each full step of the motor */
   partSteps = 512 * 8;
+
+  /**
+   * Output sequence needed to turn the motor.
+   * Reversed from what is normal because motors appear to have directions switched.
+   */
   sequence = [
-    [1, 0, 0, 1],
-    [1, 0, 0, 0],
-    [1, 1, 0, 0],
-    [0, 1, 0, 0],
-    [0, 1, 1, 0],
-    [0, 0, 1, 0],
+    [0, 0, 0, 1],
     [0, 0, 1, 1],
-    [0, 0, 0, 1]
-  ].reverse();
+    [0, 0, 1, 0],
+    [0, 1, 1, 0],
+    [0, 1, 0, 0],
+    [1, 1, 0, 0],
+    [1, 0, 0, 0],
+    [1, 0, 0, 1]
+  ];
+
+  /* Position variables */
   currentStep = 0;
   currentPartStep = 0;
   seqIdx = 0;
+
+  /* Time to wait between each partial step. Can be changed. */
   delay = 0.05;
 
+  /* ------------------- Set the output values from an array ------------------ */
   async setOutputs(outputs) {
     for (const pin in this.gpioSet) {
       await this.gpioSet[pin].write(outputs[pin]);
     }
   }
 
+  /* ----------------- Move the partial step either up or down ---------------- */
   changePartStepBy(num) {
     this.currentPartStep += num;
     this.currentStep =
@@ -46,6 +67,7 @@ export default class Stepper {
     }
   }
 
+  /* ------------------------- Move so many full steps ------------------------ */
   async forwardFull(steps) {
     if (steps < 0) {
       return await this.backwardFull(-steps);
@@ -55,6 +77,16 @@ export default class Stepper {
     }
   }
 
+  async backwardFull(steps) {
+    if (steps < 0) {
+      return await this.forwardFull(-steps);
+    }
+    for (const step in range(steps)) {
+      await this.backwardPart(this.sequence.length);
+    }
+  }
+
+  /* ----------------------- Move so many partial steps ----------------------- */
   async forwardPart(steps) {
     if (steps < 0) {
       return await this.backwardPart(-steps);
@@ -64,15 +96,6 @@ export default class Stepper {
       this.changePartStepBy(1);
       await this.setOutputs(this.sequence[this.seqIdx]);
       await sleep(this.delay);
-    }
-  }
-
-  async backwardFull(steps) {
-    if (steps < 0) {
-      return await this.forwardFull(-steps);
-    }
-    for (const step in range(steps)) {
-      await this.backwardPart(this.sequence.length);
     }
   }
 
@@ -88,6 +111,7 @@ export default class Stepper {
     }
   }
 
+  /* ------------------ Reset the motor and clear gpio values ----------------- */
   async cleanup() {
     if (this.currentPartStep > this.partSteps / 2) {
       this.backwardPart(1);
@@ -102,6 +126,8 @@ export default class Stepper {
     this.gpioSet = [];
   }
 
+  /* ------------- Calibrate the motor and prepare for the program ------------ */
+  /* --------- Used to prevent issues if the program was stopped early -------- */
   async init() {
     await this.switch.check();
     await this.switch.check(); // Strange, input sometimes reads on when actually off when first read
