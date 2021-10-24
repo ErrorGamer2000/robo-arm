@@ -22,7 +22,7 @@ export default class Stepper {
   currentStep = 0;
   currentPartStep = 0;
   seqIdx = 0;
-  delay = 0;
+  delay = 0.05;
 
   async setOutputs(outputs) {
     for (const pin in this.gpioSet) {
@@ -104,6 +104,7 @@ export default class Stepper {
 
   async init() {
     await this.switch.check();
+    await this.switch.check(); // Strange, input sometimes reads on when actually off when first read
     while (!this.switch.pressed) {
       await this.backwardPart(1);
       await this.switch.check();

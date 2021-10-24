@@ -1,3 +1,9 @@
+/*
+
+sudo i2cset -y 1
+
+*/
+
 import i2c from "i2c-bus";
 import { copy, invariant, isOne, range } from "./utils.js";
 
@@ -97,12 +103,18 @@ export default class Bus extends Constants {
     /* ------------------------- Send data to microchip ------------------------- */
 
     await this.__device.writeByte(this.__data.addr, Bus.IODIRA, rowA);
-    await this.__device.writeByte(this.__data.addr, Bus.IODIRA, rowB);
+    await this.__device.writeByte(this.__data.addr, Bus.IODIRB, rowB);
   }
 
   /* -------- Convert binary input/output data to a number for commands ------- */
   getModes(row) {
-    return Number(`0b${this.__pinIO[row].map(copy).join("")}`);
+    console.log(
+      `Loading row ${row} config as ${
+        "0".repeat(8 - copy(this.__pinIO[row]).reverse().join("").length) +
+        copy(this.__pinIO[row]).reverse().join("")
+      }`
+    );
+    return parseInt(copy(this.__pinIO[row]).reverse().join(""), 2);
   }
 
   /* ------------------- Get a GPIO pin for reading/writing ------------------- */
@@ -173,7 +185,7 @@ export default class Bus extends Constants {
 
   /* --------- Get the command number to set the outputs of a pin set --------- */
   getValues(row) {
-    return Number(`0b${this.__pinValues[row].map(copy).reverse().join("")}`);
+    return parseInt(copy(this.__pinValues[row]).reverse().join(""), 2);
   }
 
   /* ----------------------- Check values for input pins ---------------------- */
@@ -194,7 +206,7 @@ export default class Bus extends Constants {
     let values = Buffer.from(
       rowIO.map(function (inOut, pin) {
         if (inOut === 1) {
-          return binary[pin];
+          return binary[pin] === 1 ? 1 : 0; //Account for pull-up
         }
 
         return rowValues[pin];
@@ -206,15 +218,7 @@ export default class Bus extends Constants {
 
   /* ------ Convert a microchip response to binary from a base 10 number ------ */
   toBinaryArray(byte) {
-    let idx = 0;
-    let binaryArray = Buffer.alloc(8);
-
-    while (byte > 0) {
-      let rem = byte % 2;
-      byte = (byte - rem) / 2;
-      binaryArray[idx] = rem;
-      idx++;
-    }
+    let binaryArray = Buffer.from(byte.toString(2).split(""));
 
     return binaryArray;
   }
