@@ -1,9 +1,3 @@
-/*
-
-sudo i2cset -y 1
-
-*/
-
 import i2c from "i2c-bus";
 import { copy, invariant, isOne, range } from "./utils.js";
 
