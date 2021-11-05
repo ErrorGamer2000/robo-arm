@@ -212,7 +212,7 @@ export default class Bus extends Constants {
 
   /* ------ Convert a microchip response to binary from a base 10 number ------ */
   toBinaryArray(byte) {
-    let binaryArray = Buffer.from(byte.toString(2).split(""));
+    let binaryArray = Buffer.from(byte.toString(2).split("").map(Number));
 
     return binaryArray;
   }
