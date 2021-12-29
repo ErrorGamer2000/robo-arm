@@ -1,44 +1,260 @@
 import Stepper from "./stepper.js";
-import { wait } from "./helpers.js";
-import Bus from "./microchip/bus.js";
+import process from "process";
+import { createInterface } from "readline";
+import { sleep } from "./utils.js";
+import Chip from "./chip.js";
 
-const bus1 = new Bus(1, 0x20);
-await bus1.open();
-bus1.setPinIO("a", 4, Bus.IN);
-await bus1.configureIO();
-const bus1pins = {
-  a: [
-    bus1.getPin("a", 0),
-    bus1.getPin("a", 1),
-    bus1.getPin("a", 2),
-    bus1.getPin("a", 3),
-    bus1.getPin("a", 4),
-    bus1.getPin("a", 5),
-    bus1.getPin("a", 6),
-    bus1.getPin("a", 7)
-  ],
-  b: [
-    bus1.getPin("b", 0),
-    bus1.getPin("b", 1),
-    bus1.getPin("b", 2),
-    bus1.getPin("b", 3),
-    bus1.getPin("b", 4),
-    bus1.getPin("b", 5),
-    bus1.getPin("b", 6),
-    bus1.getPin("b", 7)
-  ]
+import { Gpio } from "onoff";
+import { spawn } from "child_process";
+
+/* -------------------------------------------------------------------------- */
+/*                                    Setup                                   */
+/* -------------------------------------------------------------------------- */
+
+let led = new Gpio(16, "out");
+let button = {};
+button.red = new Gpio(20, "in", "both");
+button.black = new Gpio(21, "in", "rising");
+
+led.writeSync(1);
+
+process.on("SIGINT", (_) => {
+  led.writeSync(0);
+  led.unexport();
+  process.exit();
+});
+
+/**
+ * @type {number[][]}
+ */
+let chipConfig = [
+  Array(8).fill(Chip.OUT),
+  Array(8).fill(Chip.OUT),
+  Array(8).fill(Chip.OUT),
+  Array(8).fill(Chip.OUT)
+];
+
+/* ---------------------------- Set up input pins --------------------------- */
+
+chipConfig[0][4] = Chip.IN;
+chipConfig[1][1] = Chip.IN;
+chipConfig[1][6] = Chip.IN;
+chipConfig[2][3] = Chip.IN;
+chipConfig[3][5] = Chip.IN;
+
+/* ------------------------------ Set up chips ------------------------------ */
+
+const chips = [
+  new Chip(1, 0x20),
+  new Chip(1, 0x21),
+  new Chip(1, 0x22),
+  new Chip(1, 0x23)
+];
+
+for (const chip in chips) {
+  await chips[chip].open();
+  chipConfig[chip].forEach(function (dir, idx) {
+    chips[chip].setPinIO("a", idx, dir);
+  });
+
+  await chips[chip].configureIO();
+}
+
+button.black.watch(async function () {
+  led.writeSync(0);
+  led.unexport();
+  button.red.unexport();
+  button.black.unexport();
+  await Promise.all(
+    chips.map(function (chip) {
+      return chip.__device.close();
+    })
+  );
+  spawn("sudo", ["shutdown", "-h", "now"]);
+});
+
+const pins = (function () {
+  let temp = [];
+  for (const chip in chips) {
+    temp.push(
+      chipConfig[chip].map(function (_, idx) {
+        return chips[chip].getPin("a", idx);
+      })
+    );
+  }
+
+  return temp;
+})();
+
+/* ------------------------------ Set up motors ----------------------------- */
+
+const steppers = [
+  new Stepper([...pins[0].slice(0, 4)], pins[0][4]),
+  new Stepper([...pins[0].slice(5), pins[1][0]], pins[1][1]),
+  new Stepper([...pins[1].slice(2, 6)], pins[1][6]),
+  new Stepper([pins[1][7], ...pins[2].slice(0, 3)], pins[2][3]),
+  new Stepper([...pins[2].slice(4)], pins[3][5])
+];
+
+const hand = {
+  thumb: steppers[0],
+  index: steppers[1],
+  middle: steppers[2],
+  ring: steppers[3],
+  pinky: steppers[4]
 };
 
-const stepper1 = new Stepper([...bus1pins.a.slice(0, 4)], bus1pins.a[4]);
+for (let stepper of steppers) {
+  stepper.max = 800;
+}
 
-console.log("Initialize...");
-await stepper1.init();
-await wait(1000);
-console.log("Forwards...");
-await stepper1.forwardFull(400);
-await wait(1000);
-console.log("Backwards...");
-await stepper1.backwardFull(300);
-await wait(1000);
-console.log("Cleanup...");
-await stepper1.cleanup();
+/* -------------------------------------------------------------------------- */
+/*                                     Run                                    */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------- Functions ------------------------------- */
+/*
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+/**
+ *
+ * @returns {Promise<string>}
+ */ /*
+function prompt(q) {
+  return new Promise(function (res) {
+    rl.question(q, res);
+  });
+}
+
+/**
+ *
+ * @returns {Promise<string>}
+ */ /*
+async function getCommand() {
+  let command = await prompt("Command: ");
+  command = command.toLowerCase().trim();
+
+  if (command === "sequence" || command === "run") {
+    let seq = await prompt("Run Sequence: ");
+
+    return `sequence:${seq}`;
+  }
+
+  return command;
+}*/
+
+async function calibrate() {
+  return Promise.all(
+    steppers.map(function (stepper) {
+      return stepper.init();
+    })
+  );
+}
+
+/**
+ *
+ * @param {Stepper} stepper
+ * @param {number} percent
+ */
+function move(stepper, percent) {
+  return stepper.forwardPart(800 * (Math.round(percent) / 100));
+}
+
+/**
+ *
+ * @param {Stepper} stepper
+ * @param {number} percent
+ */
+function setPosition(stepper, percent) {
+  return stepper.forwardPart(
+    800 * (Math.round(percent) / 100) - stepper.currentPartStep
+  );
+}
+
+let thinking = null;
+let off = false;
+function setThink(think) {
+  if (think) {
+    try {
+      clearInterval(thinking);
+    } finally {
+      led.writeSync(0);
+      thinking = setInterval(function () {
+        off = !off;
+        led.writeSync(Number(off));
+      }, 250);
+    }
+  } else {
+    try {
+      clearInterval(thinking);
+    } finally {
+      off = false;
+      thinking = null;
+      led.writeSync(1);
+    }
+  }
+}
+
+/* -------------------------------- Sequences ------------------------------- */
+
+const sequences = [
+  async function () {
+    await Promise.all(
+      steppers.map(function (stepper) {
+        return setPosition(stepper, 100);
+      })
+    );
+  },
+  async function () {
+    await setPosition(hand.thumb, 100);
+    await setPosition(hand.thumb, 0);
+  },
+  async function () {
+    await Promise.all([
+      setPosition(hand.thumb, 100),
+      setPosition(hand.middle, 100),
+      setPosition(hand.ring, 100)
+    ]);
+  },
+  async function () {
+    await Promise.all([
+      setPosition(hand.index, 100),
+      setPosition(hand.middle, 100),
+      setPosition(hand.ring, 100),
+      setPosition(hand.pinky, 100)
+    ]);
+  },
+  async function () {
+    await Promise.all([
+      setPosition(hand.middle, 100),
+      setPosition(hand.ring, 100),
+      setPosition(hand.pinky, 100)
+    ]);
+  }
+];
+
+/* -------------------------------- Main Loop ------------------------------- */
+await calibrate();
+while (true) {
+  for (let seq of sequences) {
+    await new Promise(function (resolve, reject) {
+      //Wait for red button to be pressed
+      function onInterrupt(e, v) {
+        if (e) return reject(e);
+        if (v) {
+          button.red.unwatch(onInterrupt);
+          resolve();
+        }
+      }
+
+      button.red.watch(onInterrupt);
+    });
+    setThink(true);
+    await seq();
+    await calibrate();
+    setThink(false);
+  }
+}

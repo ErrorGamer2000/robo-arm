@@ -1,5 +1,6 @@
 import i2c from "i2c-bus";
 import { copy, invariant, isOne, range } from "./utils.js";
+import process from "process";
 
 /* -------------------------------------------------------------------------- */
 /*                 Contants For Interfacing With The Microchip                */
@@ -20,10 +21,10 @@ class Constants {
 Object.freeze(Constants); // Prevent accidental changes
 
 /* -------------------------------------------------------------------------- */
-/*                               Main Bus Class                               */
+/*                               Main Chip Class                               */
 /* -------------------------------------------------------------------------- */
 
-export default class Bus extends Constants {
+export default class Chip extends Constants {
   /* Keep track of input/output states of pins */
   __pinIO = [
     Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]), //1 = in, 0 = out
@@ -36,8 +37,8 @@ export default class Bus extends Constants {
   ];
   /* Whether or not the pins have been registerd as inputs or outputs yet */
   hasSetIO = false;
-  constructor(busnum, addr = Bus.DEVICE, { force = false } = {}) {
-    /* Required because the `Bus` class is a child of `Constants` */
+  constructor(busnum, addr = Chip.DEVICE, { force = false } = {}) {
+    /* Required because the `Chip` class is a child of `Constants` */
     /* Doesn't do anything */
     super();
 
@@ -96,18 +97,12 @@ export default class Bus extends Constants {
 
     /* ------------------------- Send data to microchip ------------------------- */
 
-    await this.__device.writeByte(this.__data.addr, Bus.IODIRA, rowA);
-    await this.__device.writeByte(this.__data.addr, Bus.IODIRB, rowB);
+    await this.__device.writeByte(this.__data.addr, Chip.IODIRA, rowA);
+    await this.__device.writeByte(this.__data.addr, Chip.IODIRB, rowB);
   }
 
   /* -------- Convert binary input/output data to a number for commands ------- */
   getModes(row) {
-    console.log(
-      `Loading row ${row} config as ${
-        "0".repeat(8 - copy(this.__pinIO[row]).reverse().join("").length) +
-        copy(this.__pinIO[row]).reverse().join("")
-      }`
-    );
     return parseInt(copy(this.__pinIO[row]).reverse().join(""), 2);
   }
 
@@ -172,7 +167,7 @@ export default class Bus extends Constants {
   async updateRow(row) {
     await this.__device.writeByte(
       this.__data.addr,
-      row /* true if 1 */ ? Bus.OLATB : Bus.OLATA,
+      row /* true if 1 */ ? Chip.OLATB : Chip.OLATA,
       this.getValues(row)
     );
   }
@@ -187,7 +182,7 @@ export default class Bus extends Constants {
     /* Get data byte(number from 0 to 255) */
     let byte = await this.__device.readByte(
       this.__data.addr,
-      row /* true if 1 */ ? Bus.GPIOB : Bus.GPIOA
+      row /* true if 1 */ ? Chip.GPIOB : Chip.GPIOA
     );
 
     /* Convert byte to binary for reading */
@@ -200,7 +195,7 @@ export default class Bus extends Constants {
     let values = Buffer.from(
       rowIO.map(function (inOut, pin) {
         if (inOut === 1) {
-          return binary[pin] === 1 ? 1 : 0; //Account for pull-up
+          return binary[pin];
         }
 
         return rowValues[pin];
@@ -212,7 +207,13 @@ export default class Bus extends Constants {
 
   /* ------ Convert a microchip response to binary from a base 10 number ------ */
   toBinaryArray(byte) {
-    let binaryArray = Buffer.from(byte.toString(2).split("").map(Number));
+    let binary = byte.toString(2);
+    let binaryArray = Buffer.from(
+      `${"0".repeat(8 - binary.length)}${binary}`
+        .split("")
+        .reverse()
+        .map(Number)
+    );
 
     return binaryArray;
   }

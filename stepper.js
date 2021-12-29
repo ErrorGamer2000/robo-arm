@@ -17,7 +17,7 @@ export default class Stepper {
    */
   steps = 512;
 
-  /* The number of partial steps in each full step of the motor */
+  /* The number of partial steps in each full turn of the motor */
   partSteps = 512 * 8;
 
   /**
@@ -41,7 +41,11 @@ export default class Stepper {
   seqIdx = 0;
 
   /* Time to wait between each partial step. Can be changed. */
-  delay = 0.05;
+  delay = 0.005;
+
+  max = Infinity;
+
+  min = 0;
 
   /* ------------------- Set the output values from an array ------------------ */
   async setOutputs(outputs) {
@@ -52,6 +56,12 @@ export default class Stepper {
 
   /* ----------------- Move the partial step either up or down ---------------- */
   changePartStepBy(num) {
+    if (this.currentPartStep + num > this.max) {
+      return;
+    }
+    if (this.currentPartStep + num < this.min) {
+      return;
+    }
     this.currentPartStep += num;
     this.currentStep =
       (this.currentPartStep - (this.currentPartStep % this.sequence.length)) /
@@ -123,14 +133,14 @@ export default class Stepper {
         return gpio.write(0);
       })
     );
-    this.gpioSet = [];
   }
 
   /* ------------- Calibrate the motor and prepare for the program ------------ */
   /* --------- Used to prevent issues if the program was stopped early -------- */
   async init() {
+	let min = this.min;
+	this.min = -Infinity;
     await this.switch.check();
-    await this.switch.check(); // Strange, input sometimes reads on when actually off when first read
     while (!this.switch.pressed) {
       await this.backwardPart(1);
       await this.switch.check();
@@ -138,5 +148,6 @@ export default class Stepper {
 
     this.currentPartStep = 0;
     this.currentStep = 0;
+    this.min = min;
   }
 }
