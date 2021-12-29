@@ -113,38 +113,6 @@ for (let stepper of steppers) {
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------- Functions ------------------------------- */
-/*
-const rl = createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-/**
- *
- * @returns {Promise<string>}
- */ /*
-function prompt(q) {
-  return new Promise(function (res) {
-    rl.question(q, res);
-  });
-}
-
-/**
- *
- * @returns {Promise<string>}
- */ /*
-async function getCommand() {
-  let command = await prompt("Command: ");
-  command = command.toLowerCase().trim();
-
-  if (command === "sequence" || command === "run") {
-    let seq = await prompt("Run Sequence: ");
-
-    return `sequence:${seq}`;
-  }
-
-  return command;
-}*/
 
 async function calibrate() {
   return Promise.all(
