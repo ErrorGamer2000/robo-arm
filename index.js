@@ -5,7 +5,7 @@ import { sleep } from "./utils.js";
 import Chip from "./chip.js";
 
 import { Gpio } from "onoff";
-import { spawn } from "child_process";
+import { spawn } from "child_process"; //test
 
 /* -------------------------------------------------------------------------- */
 /*                                    Setup                                   */
