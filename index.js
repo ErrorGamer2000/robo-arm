@@ -105,7 +105,7 @@ const hand = {
 };
 
 for (let stepper of steppers) {
-  stepper.max = 800;
+  stepper.max = 1400;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -128,7 +128,7 @@ async function calibrate() {
  * @param {number} percent
  */
 function move(stepper, percent) {
-  return stepper.forwardPart(800 * (Math.round(percent) / 100));
+  return stepper.forwardPart(stepper.max * (Math.round(percent) / 100));
 }
 
 /**
@@ -138,7 +138,7 @@ function move(stepper, percent) {
  */
 function setPosition(stepper, percent) {
   return stepper.forwardPart(
-    800 * (Math.round(percent) / 100) - stepper.currentPartStep
+    stepper.max * (Math.round(percent) / 100) - stepper.currentPartStep
   );
 }
 
@@ -205,7 +205,9 @@ const sequences = [
 ];
 
 /* -------------------------------- Main Loop ------------------------------- */
+setThink(true);
 await calibrate();
+setThink(false);
 while (true) {
   for (let seq of sequences) {
     await new Promise(function (resolve, reject) {

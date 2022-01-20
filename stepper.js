@@ -33,7 +33,7 @@ export default class Stepper {
     [1, 1, 0, 0],
     [1, 0, 0, 0],
     [1, 0, 0, 1]
-  ];
+  ].reverse();
 
   /* Position variables */
   currentStep = 0;
