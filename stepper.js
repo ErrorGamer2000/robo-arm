@@ -43,25 +43,32 @@ export default class Stepper {
   /* Time to wait between each partial step. Can be changed. */
   delay = 0.005;
 
+  /* Max step motor can turn to */
   max = Infinity;
 
+  /* Min step motor can turn to */
   min = 0;
 
   /* ------------------- Set the output values from an array ------------------ */
   async setOutputs(outputs) {
     for (const pin in this.gpioSet) {
-      await this.gpioSet[pin].write(outputs[pin]);
+      await this.gpioSet[pin].write(outputs[pin]); //Turn pin on or off
     }
   }
 
   /* ----------------- Move the partial step either up or down ---------------- */
   changePartStepBy(num) {
+    //Purely for data storage reasons
     if (this.currentPartStep + num > this.max) {
+      //Cannot go further
       return;
     }
     if (this.currentPartStep + num < this.min) {
+      //Cannot go further
       return;
     }
+
+    /* ---------------------------- Update all values --------------------------- */
     this.currentPartStep += num;
     this.currentStep =
       (this.currentPartStep - (this.currentPartStep % this.sequence.length)) /
@@ -80,43 +87,43 @@ export default class Stepper {
   /* ------------------------- Move so many full steps ------------------------ */
   async forwardFull(steps) {
     if (steps < 0) {
-      return await this.backwardFull(-steps);
+      return await this.backwardFull(-steps); //Should not move a negative amount
     }
     for (const step in range(steps)) {
-      await this.forwardPart(this.sequence.length);
+      await this.forwardPart(this.sequence.length); //Move
     }
   }
 
   async backwardFull(steps) {
     if (steps < 0) {
-      return await this.forwardFull(-steps);
+      return await this.forwardFull(-steps); //Should not move a negative amount
     }
     for (const step in range(steps)) {
-      await this.backwardPart(this.sequence.length);
+      await this.backwardPart(this.sequence.length); //Move
     }
   }
 
   /* ----------------------- Move so many partial steps ----------------------- */
   async forwardPart(steps) {
     if (steps < 0) {
-      return await this.backwardPart(-steps);
+      return await this.backwardPart(-steps); //Should not move a negative amount
     }
 
     for (const step in range(steps)) {
       this.changePartStepBy(1);
-      await this.setOutputs(this.sequence[this.seqIdx]);
-      await sleep(this.delay);
+      await this.setOutputs(this.sequence[this.seqIdx]); //Set pin values
+      await sleep(this.delay); //Delay next frame
     }
   }
 
   async backwardPart(steps) {
     if (steps < 0) {
-      return await this.forwardPart(-steps);
+      return await this.forwardPart(-steps); //Should not move a negative amount
     }
 
     for (const step in range(steps)) {
       this.changePartStepBy(-1);
-      await this.setOutputs(this.sequence[this.seqIdx]);
+      await this.setOutputs(this.sequence[this.seqIdx]); //Set pin values
       await sleep(this.delay);
     }
   }
@@ -138,8 +145,8 @@ export default class Stepper {
   /* ------------- Calibrate the motor and prepare for the program ------------ */
   /* --------- Used to prevent issues if the program was stopped early -------- */
   async init() {
-	let min = this.min;
-	this.min = -Infinity;
+    let min = this.min;
+    this.min = -Infinity;
     await this.switch.check();
     while (!this.switch.pressed) {
       await this.backwardPart(1);

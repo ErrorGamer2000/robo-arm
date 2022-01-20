@@ -1,6 +1,5 @@
 import i2c from "i2c-bus";
 import { copy, invariant, isOne, range } from "./utils.js";
-import process from "process";
 
 /* -------------------------------------------------------------------------- */
 /*                 Contants For Interfacing With The Microchip                */
@@ -21,8 +20,10 @@ class Constants {
 Object.freeze(Constants); // Prevent accidental changes
 
 /* -------------------------------------------------------------------------- */
-/*                               Main Chip Class                               */
+/*                               Main Chip Class                              */
 /* -------------------------------------------------------------------------- */
+
+let device = null; //Store the device so there is only one reference
 
 export default class Chip extends Constants {
   /* Keep track of input/output states of pins */
@@ -49,14 +50,18 @@ export default class Chip extends Constants {
       addr
     };
 
-    this.__device = null;
+    /* Pi bus for communicating */
+    this.__device = device;
   }
 
-  /* --------------------- Create a connection wit the bus -------------------- */
+  /* --------------------- Create a connection with the bus -------------------- */
   async open() {
-    return (this.__device = await i2c.openPromisified(this.__data.num, {
-      forceAccess: this.__data.force
-    }));
+    return this.__device
+      ? Promise.resolve(this.__device)
+      : (this.__device = device =
+          await i2c.openPromisified(this.__data.num, {
+            forceAccess: this.__data.force
+          }));
   }
 
   /* -------------------- Close the connection with the bus ------------------- */
@@ -67,6 +72,7 @@ export default class Chip extends Constants {
   /* ------------------ Set a specific pin as an input/putput ----------------- */
   setPinIO(row, num, inout) {
     /* -------------------------------- Failsafes ------------------------------- */
+    /* Validate that address is a pin */
     invariant(
       isOne(row, [0, "a", 1, "b"]),
       new Error("Invalid parameter: row")
@@ -92,8 +98,8 @@ export default class Chip extends Constants {
   async configureIO() {
     /* ------------------ Convert input/output arrays to binary ----------------- */
 
-    let rowA = this.getModes(0);
-    let rowB = this.getModes(1);
+    let rowA = this.getModes(0); //Get GPA pin directions
+    let rowB = this.getModes(1); //Get GPB pin directions
 
     /* ------------------------- Send data to microchip ------------------------- */
 
@@ -131,6 +137,7 @@ export default class Chip extends Constants {
         this.isInput = self.__pinIO[row][pin] === 1;
       }
 
+      /* ---------------------------- Set pin on or off --------------------------- */
       async write(value) {
         /* -------------------------------- Failsafes ------------------------------- */
         invariant(
@@ -148,6 +155,7 @@ export default class Chip extends Constants {
         await self.updateRow(this.__row);
       }
 
+      /* ------------------------- Get pin's current value ------------------------ */
       async read() {
         invariant(
           this.isInput,

@@ -9,6 +9,6 @@ export default class Switch {
   }
 
   async check() {
-    return (this.pressed = !!(await this.pin.read()));
+    return (this.pressed = !!(await this.pin.read())); //Read whether switch has input or not
   }
 }

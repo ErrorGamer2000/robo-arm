@@ -1,11 +1,14 @@
+/* ------- Check if condition is true, and throw an error if it is not ------ */
 export function invariant(cond, err = new Error("Assertion Failed!")) {
   if (!cond) throw err;
 }
 
+/* -------------------- Check if value is in the data set ------------------- */
 export function isOne(val, set) {
   return set.includes(val);
 }
 
+/* ------------- Copy any variable to prevent accidental changes ------------ */
 export function copy(val) {
   if (typeof val !== "object" && typeof val !== "function") return val;
   if (typeof val === "function") {
@@ -59,6 +62,7 @@ export function copy(val) {
   return val;
 }
 
+/* ------------ Generate a set of numbers from one or two numbers ----------- */
 export function range(start, end) {
   if (!end) {
     if (start < 0) {
@@ -79,6 +83,7 @@ export function range(start, end) {
   }
 }
 
+/* ----------------- Pause for specified length of time (ms) ---------------- */
 export function sleep(ms) {
   if (ms <= 0) {
     return Promise.resolve();
